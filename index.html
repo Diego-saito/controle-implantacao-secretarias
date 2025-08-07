@@ -625,3 +625,11 @@
         }
 
         // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            initializeAttendances();
+            updateDashboard();
+            updateAttendanceView();
+            updatePeopleView();
+            updateSecretariasView();
+        });
