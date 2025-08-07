@@ -4,16 +4,464 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Implantação Secretarias</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .bg-gradient-to-br { background: linear-gradient(to bottom right, #dbeafe, #e0e7ff); }
-        .hover\:scale-110:hover { transform: scale(1.1); }
-        .transition-all { transition: all 0.3s ease; }
+        .bg-gradient-to-br { 
+            background: linear-gradient(to bottom right, #dbeafe, #e0e7ff); 
+        }
+        .hover\:scale-110:hover { 
+            transform: scale(1.1); 
+        }
+        .transition-all { 
+            transition: all 0.3s ease; 
+        }
+        .sticky {
+            position: sticky;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+
+    <script>
+        // Data Storage
+        let people = [
+            { id: 1, name: 'Beatriz', email: 'beatriz@email.com', department: 'Administração' },
+            { id: 2, name: 'Edenilson', email: 'edenilson@email.com', department: 'Operações' },
+            { id: 3, name: 'Eduardo', email: 'eduardo@email.com', department: 'Técnico' },
+            { id: 4, name: 'Geovane', email: 'geovane@email.com', department: 'Coordenação' },
+            { id: 5, name: 'João Victor', email: 'joaovictor@email.com', department: 'Desenvolvimento' },
+            { id: 6, name: 'Lara', email: 'lara@email.com', department: 'Recursos Humanos' },
+            { id: 7, name: 'Manoel', email: 'manoel@email.com', department: 'Manutenção' },
+            { id: 8, name: 'Marcos', email: 'marcos@email.com', department: 'Planejamento' }
+        ];
+
+        let secretarias = [
+            { id: 1, name: 'ALMOXARIFADO', responsible: 'A definir' },
+            { id: 2, name: 'SAD - Administração', responsible: 'A definir' },
+            { id: 3, name: 'SEAPA - Agricultura', responsible: 'A definir' },
+            { id: 4, name: 'SEMAS - Assistência Social', responsible: 'A definir' },
+            { id: 5, name: 'SEMEC - Educação', responsible: 'A definir' },
+            { id: 6, name: 'SME - Esporte', responsible: 'A definir' },
+            { id: 7, name: 'Sec. Gabinete - GAB', responsible: 'A definir' },
+            { id: 8, name: 'SINFRA - Infra Estrutura', responsible: 'A definir' },
+            { id: 9, name: 'SEMEA - Meio Ambiente', responsible: 'A definir' },
+            { id: 10, name: 'Sec. Saúde - SMS', responsible: 'A definir' },
+            { id: 11, name: 'SEPLAN - Secretaria Planejamento', responsible: 'A definir' },
+            { id: 12, name: 'SICS', responsible: 'A definir' }
+        ];
+
+        let attendances = {};
+
+        // Initialize attendances
+        function initializeAttendances() {
+            people.forEach(person => {
+                secretarias.forEach(secretaria => {
+                    const key = `${person.id}-${secretaria.id}`;
+                    if (!(key in attendances)) {
+                        attendances[key] = false;
+                    }
+                });
+            });
+        }
+
+        // Load data from localStorage
+        function loadData() {
+            try {
+                const savedPeople = localStorage.getItem('implantacao-people');
+                const savedSecretarias = localStorage.getItem('implantacao-secretarias');
+                const savedAttendances = localStorage.getItem('implantacao-attendances');
+
+                if (savedPeople) people = JSON.parse(savedPeople);
+                if (savedSecretarias) secretarias = JSON.parse(savedSecretarias);
+                if (savedAttendances) attendances = JSON.parse(savedAttendances);
+            } catch (e) {
+                console.log('Erro ao carregar dados salvos');
+            }
+
+            initializeAttendances();
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            try {
+                localStorage.setItem('implantacao-people', JSON.stringify(people));
+                localStorage.setItem('implantacao-secretarias', JSON.stringify(secretarias));
+                localStorage.setItem('implantacao-attendances', JSON.stringify(attendances));
+            } catch (e) {
+                console.log('Erro ao salvar dados');
+            }
+        }
+
+        // Navigation
+        function showView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view').forEach(view => {
+                view.style.display = 'none';
+            });
+
+            // Show selected view
+            const selectedView = document.getElementById(viewName + '-view');
+            if (selectedView) {
+                selectedView.style.display = 'block';
+            }
+
+            // Update navigation buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = 'nav-btn flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-gray-100 text-gray-700 hover:bg-gray-200';
+            });
+            
+            const activeBtn = document.getElementById('nav-' + viewName);
+            if (activeBtn) {
+                activeBtn.className = 'nav-btn flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-blue-600 text-white shadow-md';
+            }
+
+            // Refresh view data
+            if (viewName === 'dashboard') updateDashboard();
+            if (viewName === 'attendance') updateAttendanceView();
+            if (viewName === 'people') updatePeopleView();
+            if (viewName === 'secretarias') updateSecretariasView();
+        }
+
+        // Dashboard functions
+        function updateDashboard() {
+            const totalTrainings = people.length * secretarias.length;
+            const completedTrainings = Object.values(attendances).filter(Boolean).length;
+            const completionRate = totalTrainings > 0 ? (completedTrainings / totalTrainings * 100).toFixed(1) : 0;
+
+            const statsElements = {
+                'stats-people': people.length,
+                'stats-secretarias': secretarias.length,
+                'stats-completed': completedTrainings,
+                'stats-completion': completionRate + '%'
+            };
+
+            Object.entries(statsElements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = value;
+            });
+        }
+
+        // Attendance functions
+        function toggleAttendance(personId, secretariaId) {
+            const key = `${personId}-${secretariaId}`;
+            attendances[key] = !attendances[key];
+            saveData();
+            updateAttendanceView();
+            updateDashboard();
+        }
+
+        function updateAttendanceView() {
+            updateSecretariasStatus();
+            updateAttendanceTable();
+        }
+
+        function updateSecretariasStatus() {
+            const container = document.getElementById('secretarias-status');
+            if (!container) return;
+            
+            container.innerHTML = '';
+
+            secretarias.forEach(secretaria => {
+                const hasAnyAttendance = people.some(person => attendances[`${person.id}-${secretaria.id}`]);
+                
+                const statusCard = document.createElement('div');
+                statusCard.className = `p-3 rounded-lg border-2 ${
+                    hasAnyAttendance ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                }`;
+                
+                statusCard.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full ${hasAnyAttendance ? 'bg-green-500' : 'bg-red-500'}"></div>
+                        <div class="flex-1">
+                            <div class="font-medium text-sm text-gray-800">${secretaria.name}</div>
+                            <div class="text-xs ${hasAnyAttendance ? 'text-green-700' : 'text-red-700'}">
+                                ${hasAnyAttendance ? 'Já teve treinamento' : 'Não teve treinamento'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(statusCard);
+            });
+        }
+
+        function updateAttendanceTable() {
+            const table = document.getElementById('attendance-table');
+            const tbody = document.getElementById('attendance-tbody');
+            if (!table || !tbody) return;
+
+            const thead = table.querySelector('thead tr');
+            if (thead) {
+                thead.innerHTML = `
+                    <th class="px-6 py-4 text-left font-medium text-gray-700 sticky left-0 bg-gray-50 z-10">Pessoa</th>
+                `;
+                
+                secretarias.forEach(secretaria => {
+                    const th = document.createElement('th');
+                    th.className = 'px-4 py-4 text-center font-medium text-gray-700 min-w-32';
+                    th.innerHTML = `
+                        <div class="text-sm">${secretaria.name}</div>
+                        <div class="text-xs text-gray-500 mt-1">${secretaria.responsible}</div>
+                    `;
+                    thead.appendChild(th);
+                });
+
+                const statusTh = document.createElement('th');
+                statusTh.className = 'px-4 py-4 text-center font-medium text-gray-700';
+                statusTh.textContent = 'Status';
+                thead.appendChild(statusTh);
+            }
+
+            // Clear and rebuild body
+            tbody.innerHTML = '';
+
+            const filteredPeople = getFilteredPeople();
+
+            filteredPeople.forEach(person => {
+                const row = document.createElement('tr');
+                row.className = 'border-b hover:bg-gray-50';
+
+                const personAttendances = secretarias.map(s => attendances[`${person.id}-${s.id}`]);
+                const completedCount = personAttendances.filter(Boolean).length;
+
+                // Person name cell
+                const nameCell = document.createElement('td');
+                nameCell.className = 'px-6 py-4 sticky left-0 bg-white';
+                nameCell.innerHTML = `<div class="font-medium text-gray-800">${person.name}</div>`;
+                row.appendChild(nameCell);
+
+                // Attendance cells
+                secretarias.forEach(secretaria => {
+                    const cell = document.createElement('td');
+                    cell.className = 'px-4 py-4 text-center';
+                    
+                    const isPresent = attendances[`${person.id}-${secretaria.id}`];
+                    const button = document.createElement('button');
+                    button.className = `w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-110 ${
+                        isPresent
+                            ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                            : 'bg-red-100 text-red-600 hover:bg-red-200'
+                    }`;
+                    button.innerHTML = isPresent ? '✅' : '❌';
+                    button.onclick = () => toggleAttendance(person.id, secretaria.id);
+                    
+                    cell.appendChild(button);
+                    row.appendChild(cell);
+                });
+
+                // Status cell
+                const statusCell = document.createElement('td');
+                statusCell.className = 'px-4 py-4 text-center';
+                const completionPercentage = secretarias.length > 0 ? (completedCount / secretarias.length * 100) : 0;
+                
+                statusCell.innerHTML = `
+                    <div class="flex items-center justify-center gap-2">
+                        <div class="w-3 h-3 rounded-full ${
+                            completionPercentage === 100 ? 'bg-green-500' :
+                            completionPercentage > 0 ? 'bg-yellow-500' : 'bg-red-500'
+                        }"></div>
+                        <span class="text-sm font-medium">${completedCount}/${secretarias.length}</span>
+                    </div>
+                `;
+                row.appendChild(statusCell);
+
+                tbody.appendChild(row);
+            });
+        }
+
+        function getFilteredPeople() {
+            const searchInput = document.getElementById('search-input');
+            const filterSelect = document.getElementById('filter-status');
+            
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+            const filterStatus = filterSelect ? filterSelect.value : 'all';
+
+            return people.filter(person => {
+                const matchesSearch = person.name.toLowerCase().includes(searchTerm);
+                
+                if (filterStatus === 'all') return matchesSearch;
+                
+                const personAttendances = secretarias.map(s => attendances[`${person.id}-${s.id}`]);
+                if (filterStatus === 'complete') {
+                    return matchesSearch && personAttendances.every(Boolean);
+                }
+                if (filterStatus === 'incomplete') {
+                    return matchesSearch && personAttendances.some(a => !a);
+                }
+                if (filterStatus === 'none') {
+                    return matchesSearch && personAttendances.every(a => !a);
+                }
+                
+                return matchesSearch;
+            });
+        }
+
+        function filterPeople() {
+            updateAttendanceTable();
+        }
+
+        // People management
+        function addPerson() {
+            const nameInput = document.getElementById('new-person-name');
+            const emailInput = document.getElementById('new-person-email');
+            const departmentInput = document.getElementById('new-person-department');
+            
+            if (!nameInput) return;
+            
+            const name = nameInput.value.trim();
+            const email = emailInput ? emailInput.value.trim() : '';
+            const department = departmentInput ? departmentInput.value.trim() : '';
+
+            if (!name) return;
+
+            const id = Math.max(0, ...people.map(p => p.id)) + 1;
+            people.push({ id, name, email, department });
+            
+            // Clear form
+            nameInput.value = '';
+            if (emailInput) emailInput.value = '';
+            if (departmentInput) departmentInput.value = '';
+
+            initializeAttendances();
+            saveData();
+            updatePeopleView();
+            updateDashboard();
+        }
+
+        function deletePerson(id) {
+            people = people.filter(p => p.id !== id);
+            
+            // Clean up attendances
+            Object.keys(attendances).forEach(key => {
+                if (key.startsWith(`${id}-`)) {
+                    delete attendances[key];
+                }
+            });
+
+            saveData();
+            updatePeopleView();
+            updateDashboard();
+        }
+
+        function updatePeopleView() {
+            const container = document.getElementById('people-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+
+            people.forEach(person => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg';
+                
+                item.innerHTML = `
+                    <div class="flex-1">
+                        <h3 class="font-medium text-gray-800">${person.name}</h3>
+                        <p class="text-sm text-gray-600">${person.email || 'Email não informado'}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="deletePerson(${person.id})" class="p-2 text-red-600 hover:bg-red-100 rounded-lg">
+                            🗑️
+                        </button>
+                    </div>
+                `;
+                
+                container.appendChild(item);
+            });
+        }
+
+        // Secretarias management
+        function addSecretaria() {
+            const nameInput = document.getElementById('new-secretaria-name');
+            const responsibleInput = document.getElementById('new-secretaria-responsible');
+            
+            if (!nameInput) return;
+            
+            const name = nameInput.value.trim();
+            const responsible = responsibleInput ? responsibleInput.value.trim() : 'A definir';
+
+            if (!name) return;
+
+            const id = Math.max(0, ...secretarias.map(s => s.id)) + 1;
+            secretarias.push({ id, name, responsible });
+            
+            // Clear form
+            nameInput.value = '';
+            if (responsibleInput) responsibleInput.value = '';
+
+            initializeAttendances();
+            saveData();
+            updateSecretariasView();
+            updateDashboard();
+        }
+
+        function deleteSecretaria(id) {
+            secretarias = secretarias.filter(s => s.id !== id);
+            
+            // Clean up attendances
+            Object.keys(attendances).forEach(key => {
+                if (key.endsWith(`-${id}`)) {
+                    delete attendances[key];
+                }
+            });
+
+            saveData();
+            updateSecretariasView();
+            updateDashboard();
+        }
+
+        function updateSecretariasView() {
+            const container = document.getElementById('secretarias-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+
+            secretarias.forEach(secretaria => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg';
+                
+                item.innerHTML = `
+                    <div class="flex-1">
+                        <h3 class="font-medium text-gray-800">${secretaria.name}</h3>
+                        <p class="text-sm text-gray-600">Responsável: ${secretaria.responsible || 'A definir'}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="deleteSecretaria(${secretaria.id})" class="p-2 text-red-600 hover:bg-red-100 rounded-lg">
+                            🗑️
+                        </button>
+                    </div>
+                `;
+                
+                container.appendChild(item);
+            });
+        }
+
+        // Export function
+        function exportData() {
+            const data = {
+                people,
+                secretarias,
+                attendances,
+                exportDate: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `controle_implantacao_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize app when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            initializeAttendances();
+            updateDashboard();
+            showView('dashboard');
+        });
+    </script>
+
     <div class="container mx-auto p-6">
         <!-- Header -->
         <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
@@ -151,7 +599,6 @@
                                 <th class="px-6 py-4 text-left font-medium text-gray-700 sticky left-0 bg-gray-50 z-10">
                                     Pessoa
                                 </th>
-                                <!-- Secretaria headers will be populated by JavaScript -->
                                 <th class="px-4 py-4 text-center font-medium text-gray-700">Status</th>
                             </tr>
                         </thead>
@@ -214,422 +661,4 @@
                         type="text"
                         id="new-secretaria-name"
                         placeholder="Nome da secretaria"
-                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                        type="text"
-                        id="new-secretaria-responsible"
-                        placeholder="Responsável"
-                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                        onclick="addSecretaria()"
-                        class="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <span>➕</span> Adicionar
-                    </button>
-                </div>
-
-                <!-- Secretarias List -->
-                <div id="secretarias-list" class="space-y-3">
-                    <!-- Secretarias items will be populated by JavaScript -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Data Storage
-        let people = [
-            { id: 1, name: 'Beatriz', email: 'beatriz@email.com', department: 'Administração' },
-            { id: 2, name: 'Edenilson', email: 'edenilson@email.com', department: 'Operações' },
-            { id: 3, name: 'Eduardo', email: 'eduardo@email.com', department: 'Técnico' },
-            { id: 4, name: 'Geovane', email: 'geovane@email.com', department: 'Coordenação' },
-            { id: 5, name: 'João Victor', email: 'joaovictor@email.com', department: 'Desenvolvimento' },
-            { id: 6, name: 'Lara', email: 'lara@email.com', department: 'Recursos Humanos' },
-            { id: 7, name: 'Manoel', email: 'manoel@email.com', department: 'Manutenção' },
-            { id: 8, name: 'Marcos', email: 'marcos@email.com', department: 'Planejamento' }
-        ];
-
-        let secretarias = [
-            { id: 1, name: 'ALMOXARIFADO', responsible: 'A definir' },
-            { id: 2, name: 'SAD - Administração', responsible: 'A definir' },
-            { id: 3, name: 'SEAPA - Agricultura', responsible: 'A definir' },
-            { id: 4, name: 'SEMAS - Assistência Social', responsible: 'A definir' },
-            { id: 5, name: 'SEMEC - Educação', responsible: 'A definir' },
-            { id: 6, name: 'SME - Esporte', responsible: 'A definir' },
-            { id: 7, name: 'Sec. Gabinete - GAB', responsible: 'A definir' },
-            { id: 8, name: 'SINFRA - Infra Estrutura', responsible: 'A definir' },
-            { id: 9, name: 'SEMEA - Meio Ambiente', responsible: 'A definir' },
-            { id: 10, name: 'Sec. Saúde - SMS', responsible: 'A definir' },
-            { id: 11, name: 'SEPLAN - Secretaria Planejamento', responsible: 'A definir' },
-            { id: 12, name: 'SICS', responsible: 'A definir' }
-        ];
-
-        let attendances = {};
-
-        // Initialize attendances
-        function initializeAttendances() {
-            people.forEach(person => {
-                secretarias.forEach(secretaria => {
-                    const key = `${person.id}-${secretaria.id}`;
-                    if (!(key in attendances)) {
-                        attendances[key] = false;
-                    }
-                });
-            });
-        }
-
-        // Load data from localStorage
-        function loadData() {
-            const savedPeople = localStorage.getItem('implantacao-people');
-            const savedSecretarias = localStorage.getItem('implantacao-secretarias');
-            const savedAttendances = localStorage.getItem('implantacao-attendances');
-
-            if (savedPeople) people = JSON.parse(savedPeople);
-            if (savedSecretarias) secretarias = JSON.parse(savedSecretarias);
-            if (savedAttendances) attendances = JSON.parse(savedAttendances);
-
-            initializeAttendances();
-        }
-
-        // Save data to localStorage
-        function saveData() {
-            localStorage.setItem('implantacao-people', JSON.stringify(people));
-            localStorage.setItem('implantacao-secretarias', JSON.stringify(secretarias));
-            localStorage.setItem('implantacao-attendances', JSON.stringify(attendances));
-        }
-
-        // Navigation
-        function showView(viewName) {
-            // Hide all views
-            document.querySelectorAll('.view').forEach(view => {
-                view.style.display = 'none';
-            });
-
-            // Show selected view
-            document.getElementById(viewName + '-view').style.display = 'block';
-
-            // Update navigation buttons
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.className = 'nav-btn flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-gray-100 text-gray-700 hover:bg-gray-200';
-            });
-            document.getElementById('nav-' + viewName).className = 'nav-btn flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-blue-600 text-white shadow-md';
-
-            // Refresh view data
-            if (viewName === 'dashboard') updateDashboard();
-            if (viewName === 'attendance') updateAttendanceView();
-            if (viewName === 'people') updatePeopleView();
-            if (viewName === 'secretarias') updateSecretariasView();
-        }
-
-        // Dashboard functions
-        function updateDashboard() {
-            const totalTrainings = people.length * secretarias.length;
-            const completedTrainings = Object.values(attendances).filter(Boolean).length;
-            const completionRate = totalTrainings > 0 ? (completedTrainings / totalTrainings * 100).toFixed(1) : 0;
-
-            document.getElementById('stats-people').textContent = people.length;
-            document.getElementById('stats-secretarias').textContent = secretarias.length;
-            document.getElementById('stats-completed').textContent = completedTrainings;
-            document.getElementById('stats-completion').textContent = completionRate + '%';
-        }
-
-        // Attendance functions
-        function toggleAttendance(personId, secretariaId) {
-            const key = `${personId}-${secretariaId}`;
-            attendances[key] = !attendances[key];
-            saveData();
-            updateAttendanceView();
-            updateDashboard();
-        }
-
-        function updateAttendanceView() {
-            updateSecretariasStatus();
-            updateAttendanceTable();
-        }
-
-        function updateSecretariasStatus() {
-            const container = document.getElementById('secretarias-status');
-            container.innerHTML = '';
-
-            secretarias.forEach(secretaria => {
-                const hasAnyAttendance = people.some(person => attendances[`${person.id}-${secretaria.id}`]);
-                
-                const statusCard = document.createElement('div');
-                statusCard.className = `p-3 rounded-lg border-2 ${
-                    hasAnyAttendance ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                }`;
-                
-                statusCard.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full ${hasAnyAttendance ? 'bg-green-500' : 'bg-red-500'}"></div>
-                        <div class="flex-1">
-                            <div class="font-medium text-sm text-gray-800">${secretaria.name}</div>
-                            <div class="text-xs ${hasAnyAttendance ? 'text-green-700' : 'text-red-700'}">
-                                ${hasAnyAttendance ? 'Já teve treinamento' : 'Não teve treinamento'}
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                container.appendChild(statusCard);
-            });
-        }
-
-        function updateAttendanceTable() {
-            const thead = document.querySelector('#attendance-table thead tr');
-            const tbody = document.getElementById('attendance-tbody');
-
-            // Clear and rebuild header
-            thead.innerHTML = `
-                <th class="px-6 py-4 text-left font-medium text-gray-700 sticky left-0 bg-gray-50 z-10">Pessoa</th>
-            `;
-            
-            secretarias.forEach(secretaria => {
-                const th = document.createElement('th');
-                th.className = 'px-4 py-4 text-center font-medium text-gray-700 min-w-32';
-                th.innerHTML = `
-                    <div class="text-sm">${secretaria.name}</div>
-                    <div class="text-xs text-gray-500 mt-1">${secretaria.responsible}</div>
-                `;
-                thead.appendChild(th);
-            });
-
-            const statusTh = document.createElement('th');
-            statusTh.className = 'px-4 py-4 text-center font-medium text-gray-700';
-            statusTh.textContent = 'Status';
-            thead.appendChild(statusTh);
-
-            // Clear and rebuild body
-            tbody.innerHTML = '';
-
-            const filteredPeople = getFilteredPeople();
-
-            filteredPeople.forEach(person => {
-                const row = document.createElement('tr');
-                row.className = 'border-b hover:bg-gray-50';
-
-                const personAttendances = secretarias.map(s => attendances[`${person.id}-${s.id}`]);
-                const completedCount = personAttendances.filter(Boolean).length;
-
-                // Person name cell
-                const nameCell = document.createElement('td');
-                nameCell.className = 'px-6 py-4 sticky left-0 bg-white';
-                nameCell.innerHTML = `<div class="font-medium text-gray-800">${person.name}</div>`;
-                row.appendChild(nameCell);
-
-                // Attendance cells
-                secretarias.forEach(secretaria => {
-                    const cell = document.createElement('td');
-                    cell.className = 'px-4 py-4 text-center';
-                    
-                    const isPresent = attendances[`${person.id}-${secretaria.id}`];
-                    const button = document.createElement('button');
-                    button.className = `w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-110 ${
-                        isPresent
-                            ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                            : 'bg-red-100 text-red-600 hover:bg-red-200'
-                    }`;
-                    button.innerHTML = isPresent ? '✅' : '❌';
-                    button.onclick = () => toggleAttendance(person.id, secretaria.id);
-                    
-                    cell.appendChild(button);
-                    row.appendChild(cell);
-                });
-
-                // Status cell
-                const statusCell = document.createElement('td');
-                statusCell.className = 'px-4 py-4 text-center';
-                const completionPercentage = secretarias.length > 0 ? (completedCount / secretarias.length * 100) : 0;
-                
-                statusCell.innerHTML = `
-                    <div class="flex items-center justify-center gap-2">
-                        <div class="w-3 h-3 rounded-full ${
-                            completionPercentage === 100 ? 'bg-green-500' :
-                            completionPercentage > 0 ? 'bg-yellow-500' : 'bg-red-500'
-                        }"></div>
-                        <span class="text-sm font-medium">${completedCount}/${secretarias.length}</span>
-                    </div>
-                `;
-                row.appendChild(statusCell);
-
-                tbody.appendChild(row);
-            });
-        }
-
-        function getFilteredPeople() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const filterStatus = document.getElementById('filter-status').value;
-
-            return people.filter(person => {
-                const matchesSearch = person.name.toLowerCase().includes(searchTerm);
-                
-                if (filterStatus === 'all') return matchesSearch;
-                
-                const personAttendances = secretarias.map(s => attendances[`${person.id}-${s.id}`]);
-                if (filterStatus === 'complete') {
-                    return matchesSearch && personAttendances.every(Boolean);
-                }
-                if (filterStatus === 'incomplete') {
-                    return matchesSearch && personAttendances.some(a => !a);
-                }
-                if (filterStatus === 'none') {
-                    return matchesSearch && personAttendances.every(a => !a);
-                }
-                
-                return matchesSearch;
-            });
-        }
-
-        function filterPeople() {
-            updateAttendanceTable();
-        }
-
-        // People management
-        function addPerson() {
-            const name = document.getElementById('new-person-name').value.trim();
-            const email = document.getElementById('new-person-email').value.trim();
-            const department = document.getElementById('new-person-department').value.trim();
-
-            if (!name) return;
-
-            const id = Math.max(0, ...people.map(p => p.id)) + 1;
-            people.push({ id, name, email, department });
-            
-            // Clear form
-            document.getElementById('new-person-name').value = '';
-            document.getElementById('new-person-email').value = '';
-            document.getElementById('new-person-department').value = '';
-
-            initializeAttendances();
-            saveData();
-            updatePeopleView();
-            updateDashboard();
-        }
-
-        function deletePerson(id) {
-            people = people.filter(p => p.id !== id);
-            
-            // Clean up attendances
-            Object.keys(attendances).forEach(key => {
-                if (key.startsWith(`${id}-`)) {
-                    delete attendances[key];
-                }
-            });
-
-            saveData();
-            updatePeopleView();
-            updateDashboard();
-        }
-
-        function updatePeopleView() {
-            const container = document.getElementById('people-list');
-            container.innerHTML = '';
-
-            people.forEach(person => {
-                const item = document.createElement('div');
-                item.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg';
-                
-                item.innerHTML = `
-                    <div class="flex-1">
-                        <h3 class="font-medium text-gray-800">${person.name}</h3>
-                        <p class="text-sm text-gray-600">${person.email}</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="deletePerson(${person.id})" class="p-2 text-red-600 hover:bg-red-100 rounded-lg">
-                            🗑️
-                        </button>
-                    </div>
-                `;
-                
-                container.appendChild(item);
-            });
-        }
-
-        // Secretarias management
-        function addSecretaria() {
-            const name = document.getElementById('new-secretaria-name').value.trim();
-            const responsible = document.getElementById('new-secretaria-responsible').value.trim();
-
-            if (!name) return;
-
-            const id = Math.max(0, ...secretarias.map(s => s.id)) + 1;
-            secretarias.push({ id, name, responsible });
-            
-            // Clear form
-            document.getElementById('new-secretaria-name').value = '';
-            document.getElementById('new-secretaria-responsible').value = '';
-
-            initializeAttendances();
-            saveData();
-            updateSecretariasView();
-            updateDashboard();
-        }
-
-        function deleteSecretaria(id) {
-            secretarias = secretarias.filter(s => s.id !== id);
-            
-            // Clean up attendances
-            Object.keys(attendances).forEach(key => {
-                if (key.endsWith(`-${id}`)) {
-                    delete attendances[key];
-                }
-            });
-
-            saveData();
-            updateSecretariasView();
-            updateDashboard();
-        }
-
-        function updateSecretariasView() {
-            const container = document.getElementById('secretarias-list');
-            container.innerHTML = '';
-
-            secretarias.forEach(secretaria => {
-                const item = document.createElement('div');
-                item.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg';
-                
-                item.innerHTML = `
-                    <div class="flex-1">
-                        <h3 class="font-medium text-gray-800">${secretaria.name}</h3>
-                        <p class="text-sm text-gray-600">Responsável: ${secretaria.responsible}</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="deleteSecretaria(${secretaria.id})" class="p-2 text-red-600 hover:bg-red-100 rounded-lg">
-                            🗑️
-                        </button>
-                    </div>
-                `;
-                
-                container.appendChild(item);
-            });
-        }
-
-        // Export function
-        function exportData() {
-            const data = {
-                people,
-                secretarias,
-                attendances,
-                exportDate: new Date().toISOString()
-            };
-            
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `controle_implantacao_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData();
-            initializeAttendances();
-            updateDashboard();
-            updateAttendanceView();
-            updatePeopleView();
-            updateSecretariasView();
-        });
+                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2
